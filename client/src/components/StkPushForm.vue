@@ -61,15 +61,6 @@
           <p class="mt-1 text-xs text-amber-800">
             Check your phone and enter your M-Pesa PIN.
           </p>
-          <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-amber-100">
-            <div
-              class="h-full rounded-full bg-amber-500 transition-all duration-500"
-              :style="{ width: `${progress}%` }"
-            />
-          </div>
-          <p class="mt-2 text-xs text-amber-700">
-            Checking status {{ attempt }} of {{ maxAttempts }}
-          </p>
         </div>
       </div>
     </div>
@@ -98,7 +89,7 @@ const error = ref('')
 const successMessage = ref('')
 const warningMessage = ref('')
 
-const { isWaiting, attempt, maxAttempts, startWaiting } = usePaymentStatus()
+const { isWaiting, startWaiting } = usePaymentStatus()
 
 const form = reactive({
   amount: '',
@@ -111,8 +102,6 @@ const submitLabel = computed(() => {
   if (isWaiting.value) return 'Waiting for payment...'
   return 'Send STK Push'
 })
-
-const progress = computed(() => (attempt.value / maxAttempts) * 100)
 
 function formatPhone(phone) {
   let p = phone.replace(/\s+/g, '')
@@ -154,7 +143,7 @@ async function submit() {
         } else if (result === 'Failed') {
           error.value = 'Payment failed or was cancelled.'
         } else {
-          warningMessage.value = 'No callback received yet. Status may update shortly.'
+          warningMessage.value = 'Payment confirmation timed out. Check your transactions for the latest status.'
         }
       },
     })
