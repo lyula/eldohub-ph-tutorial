@@ -1,5 +1,5 @@
 <template>
-  <section class="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
+  <section class="flex h-full w-full flex-col rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
     <div class="mb-5">
       <h2 class="text-lg font-semibold text-black">Send STK Push</h2>
       <p class="mt-1 text-sm text-neutral-500">Trigger an M-Pesa prompt via PayHero API.</p>

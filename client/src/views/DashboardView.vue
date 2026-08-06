@@ -8,16 +8,18 @@
         <p class="mt-1 text-sm text-neutral-500">Initiate STK pushes and track payment callbacks.</p>
       </div>
 
-      <div class="flex flex-col gap-5 lg:grid lg:grid-cols-5 lg:gap-6">
-        <div class="lg:col-span-2">
+      <div class="flex flex-col gap-5 sm:grid sm:grid-cols-5 sm:items-stretch sm:gap-6">
+        <div class="sm:col-span-2 sm:flex">
           <StkPushForm
+            class="w-full"
             @transaction-added="handleTransactionAdded"
             @transaction-updated="updateTransaction"
             @payment-complete="() => loadTransactions(page, false)"
           />
         </div>
-        <div class="lg:col-span-3">
+        <div class="sm:col-span-3 sm:flex">
           <TransactionTable
+            class="w-full"
             :transactions="transactions"
             :initial-loading="initialLoading"
             :pagination="pagination"

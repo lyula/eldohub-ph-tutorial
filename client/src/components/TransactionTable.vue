@@ -1,10 +1,7 @@
 <template>
-  <section class="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
-    <div class="mb-4 flex items-start justify-between gap-3">
-      <div class="min-w-0">
-        <h2 class="text-base font-semibold text-black sm:text-lg">Recent Transactions</h2>
-        <p class="text-xs text-neutral-500 sm:text-sm">Latest STK requests and callbacks.</p>
-      </div>
+  <section class="flex h-full w-full flex-col rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
+    <div class="mb-4 flex items-center justify-between gap-3">
+      <h2 class="text-base font-semibold text-black sm:text-lg">Recent Transactions</h2>
       <button
         type="button"
         class="shrink-0 rounded-lg border border-neutral-200 px-3 py-1.5 text-xs font-medium text-green-700 transition hover:border-green-200 hover:bg-green-50 sm:text-sm"
@@ -14,16 +11,18 @@
       </button>
     </div>
 
-    <div v-if="initialLoading" class="py-8 text-center text-sm text-neutral-500">Loading...</div>
+    <div v-if="initialLoading" class="flex flex-1 items-center justify-center py-8 text-sm text-neutral-500">
+      Loading...
+    </div>
 
     <div
       v-else-if="!transactions.length"
-      class="rounded-xl bg-neutral-50 py-10 text-center text-sm text-neutral-500"
+      class="flex flex-1 items-center justify-center rounded-xl bg-neutral-50 py-10 text-center text-sm text-neutral-500"
     >
       No transactions yet. Send your first STK push.
     </div>
 
-    <template v-else>
+    <div v-else class="flex flex-1 flex-col min-h-0">
       <!-- Mobile cards -->
       <div class="space-y-3 sm:hidden">
         <article
@@ -82,7 +81,7 @@
         </table>
       </div>
 
-      <div class="mt-4 flex items-center justify-between gap-3 border-t border-neutral-100 pt-4">
+      <div class="mt-auto flex items-center justify-between gap-3 border-t border-neutral-100 pt-4">
         <p class="text-xs text-neutral-500">
           Page {{ pagination.page }} of {{ pagination.totalPages }}
           <span class="hidden sm:inline">· {{ pagination.total }} total</span>
@@ -106,7 +105,7 @@
           </button>
         </div>
       </div>
-    </template>
+    </div>
   </section>
 </template>
 
