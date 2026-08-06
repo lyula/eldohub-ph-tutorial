@@ -13,7 +13,8 @@
           type="number"
           min="1"
           placeholder="e.g. 10"
-          class="w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+          :disabled="isWaiting"
+          class="w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100 disabled:bg-neutral-50"
         />
       </div>
 
@@ -23,7 +24,8 @@
           v-model="form.phone"
           type="tel"
           placeholder="0712345678"
-          class="w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+          :disabled="isWaiting"
+          class="w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100 disabled:bg-neutral-50"
         />
       </div>
 
@@ -33,22 +35,50 @@
           v-model="form.reference"
           type="text"
           placeholder="ELDO-001"
-          class="w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+          :disabled="isWaiting"
+          class="w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100 disabled:bg-neutral-50"
         />
       </div>
 
       <button
         type="submit"
-        :disabled="loading"
+        :disabled="loading || isWaiting"
         class="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
       >
         <span v-if="loading" class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-        {{ loading ? 'Sending...' : 'Send STK Push' }}
+        {{ submitLabel }}
       </button>
     </form>
 
-    <p v-if="message" class="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
-      {{ message }}
+    <div
+      v-if="isWaiting"
+      class="mt-4 rounded-xl border border-amber-100 bg-amber-50 p-4"
+    >
+      <div class="flex items-start gap-3">
+        <span class="mt-0.5 h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-amber-600 border-t-transparent" />
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-medium text-amber-900">Waiting for payment confirmation</p>
+          <p class="mt-1 text-xs text-amber-800">
+            Check your phone and enter your M-Pesa PIN.
+          </p>
+          <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-amber-100">
+            <div
+              class="h-full rounded-full bg-amber-500 transition-all duration-500"
+              :style="{ width: `${progress}%` }"
+            />
+          </div>
+          <p class="mt-2 text-xs text-amber-700">
+            Checking status {{ attempt }} of {{ maxAttempts }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <p v-else-if="successMessage" class="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800">
+      {{ successMessage }}
+    </p>
+    <p v-else-if="warningMessage" class="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+      {{ warningMessage }}
     </p>
     <p v-if="error" class="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
       {{ error }}
@@ -57,20 +87,32 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { paymentApi } from '@/services/api'
+import { usePaymentStatus } from '@/composables/usePaymentStatus'
 
-const emit = defineEmits(['sent'])
+const emit = defineEmits(['transaction-added', 'transaction-updated'])
 
 const loading = ref(false)
-const message = ref('')
 const error = ref('')
+const successMessage = ref('')
+const warningMessage = ref('')
+
+const { isWaiting, attempt, maxAttempts, startWaiting } = usePaymentStatus()
 
 const form = reactive({
   amount: '',
   phone: '',
   reference: `ELDO-${Date.now()}`,
 })
+
+const submitLabel = computed(() => {
+  if (loading.value) return 'Sending...'
+  if (isWaiting.value) return 'Waiting for payment...'
+  return 'Send STK Push'
+})
+
+const progress = computed(() => (attempt.value / maxAttempts) * 100)
 
 function formatPhone(phone) {
   let p = phone.replace(/\s+/g, '')
@@ -79,9 +121,14 @@ function formatPhone(phone) {
   return p
 }
 
-async function submit() {
-  message.value = ''
+function clearMessages() {
   error.value = ''
+  successMessage.value = ''
+  warningMessage.value = ''
+}
+
+async function submit() {
+  clearMessages()
 
   if (!form.amount || !form.phone) {
     error.value = 'Amount and phone number are required.'
@@ -95,9 +142,22 @@ async function submit() {
       phone: formatPhone(form.phone),
       reference: form.reference,
     })
-    message.value = 'STK push sent. Waiting for payment confirmation on your phone...'
-    emit('sent', { transaction: data.transaction, transactionId: data.transactionId })
+
+    emit('transaction-added', data.transaction)
     form.reference = `ELDO-${Date.now()}`
+
+    startWaiting(data.transaction._id, {
+      onUpdate: (transaction) => emit('transaction-updated', transaction),
+      onComplete: (result) => {
+        if (result === 'Success') {
+          successMessage.value = 'Payment confirmed successfully.'
+        } else if (result === 'Failed') {
+          error.value = 'Payment failed or was cancelled.'
+        } else {
+          warningMessage.value = 'No callback received yet. Status may update shortly.'
+        }
+      },
+    })
   } catch (err) {
     error.value = err.response?.data?.error || 'Failed to send STK push.'
   } finally {

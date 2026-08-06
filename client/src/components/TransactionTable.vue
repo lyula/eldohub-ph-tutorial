@@ -14,7 +14,7 @@
       </button>
     </div>
 
-    <div v-if="loading" class="py-8 text-center text-sm text-neutral-500">Loading...</div>
+    <div v-if="initialLoading" class="py-8 text-center text-sm text-neutral-500">Loading...</div>
 
     <div
       v-else-if="!transactions.length"
@@ -28,13 +28,12 @@
       <article
         v-for="tx in transactions"
         :key="tx._id"
-        class="rounded-xl border border-neutral-100 bg-neutral-50 p-4"
+        class="rounded-xl border border-neutral-100 bg-neutral-50 p-4 transition-colors"
       >
         <div class="mb-3 flex items-start justify-between gap-2">
           <p class="break-all font-mono text-xs text-neutral-800">{{ tx.externalReference }}</p>
-          <StatusBadge :status="tx.status" :polling="isPolling(tx._id)" />
+          <StatusBadge :status="tx.status" />
         </div>
-        <p v-if="pollLabel(tx._id)" class="mb-3 text-xs text-amber-700">{{ pollLabel(tx._id) }}</p>
         <div class="grid grid-cols-2 gap-2 text-sm">
           <div>
             <p class="text-xs text-neutral-500">Phone</p>
@@ -63,19 +62,14 @@
           <tr
             v-for="tx in transactions"
             :key="tx._id"
-            class="border-b border-neutral-50 last:border-0"
+            class="border-b border-neutral-50 last:border-0 transition-colors"
           >
             <td class="max-w-[180px] truncate py-3 pr-4 font-mono text-xs text-neutral-800">
               {{ tx.externalReference }}
             </td>
             <td class="py-3 pr-4 text-neutral-600">{{ tx.phoneNumber }}</td>
             <td class="py-3 pr-4 font-medium text-black">KES {{ tx.amount }}</td>
-            <td class="py-3">
-              <StatusBadge :status="tx.status" :polling="isPolling(tx._id)" />
-              <p v-if="pollLabel(tx._id)" class="mt-1 text-xs text-amber-700">
-                {{ pollLabel(tx._id) }}
-              </p>
-            </td>
+            <td class="py-3"><StatusBadge :status="tx.status" /></td>
           </tr>
         </tbody>
       </table>
@@ -86,21 +80,10 @@
 <script setup>
 import StatusBadge from './StatusBadge.vue'
 
-const props = defineProps({
+defineProps({
   transactions: { type: Array, default: () => [] },
-  loading: { type: Boolean, default: false },
-  pollingState: { type: Object, default: () => ({}) },
+  initialLoading: { type: Boolean, default: false },
 })
 
 defineEmits(['refresh'])
-
-function isPolling(id) {
-  return Boolean(props.pollingState[id]?.isPolling)
-}
-
-function pollLabel(id) {
-  const meta = props.pollingState[id]
-  if (!meta?.isPolling || !meta.attempt) return ''
-  return `Waiting for callback (${meta.attempt}/${meta.maxAttempts})`
-}
 </script>

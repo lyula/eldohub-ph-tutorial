@@ -10,14 +10,16 @@
 
       <div class="flex flex-col gap-5 lg:grid lg:grid-cols-5 lg:gap-6">
         <div class="lg:col-span-2">
-          <StkPushForm @sent="handleStkSent" />
+          <StkPushForm
+            @transaction-added="addTransaction"
+            @transaction-updated="updateTransaction"
+          />
         </div>
         <div class="lg:col-span-3">
           <TransactionTable
             :transactions="transactions"
-            :loading="loading"
-            :polling-state="pollingState"
-            @refresh="loadTransactions"
+            :initial-loading="initialLoading"
+            @refresh="loadTransactions(true)"
           />
         </div>
       </div>
@@ -26,48 +28,39 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import AppNavbar from '@/components/AppNavbar.vue'
 import StkPushForm from '@/components/StkPushForm.vue'
 import TransactionTable from '@/components/TransactionTable.vue'
 import { paymentApi } from '@/services/api'
-import { useTransactionPolling } from '@/composables/useTransactionPolling'
 
 const transactions = ref([])
-const loading = ref(false)
+const initialLoading = ref(true)
 
-const { pollingState, startPolling, stopAll, resumePollingForQueued } = useTransactionPolling()
-
-async function loadTransactions() {
-  loading.value = true
+async function loadTransactions(showLoading = false) {
+  if (showLoading) initialLoading.value = true
   try {
     const { data } = await paymentApi.getTransactions()
     transactions.value = data
-    resumePollingForQueued(data, (updated) => {
-      transactions.value = updated
-    })
   } catch {
-    transactions.value = []
+    if (showLoading) transactions.value = []
   } finally {
-    loading.value = false
+    initialLoading.value = false
   }
 }
 
-function handleStkSent(payload) {
-  if (payload?.transaction) {
-    transactions.value = [
-      payload.transaction,
-      ...transactions.value.filter((tx) => tx._id !== payload.transaction._id),
-    ]
-    startPolling(payload.transaction._id, (updated) => {
-      transactions.value = updated
-    })
-    return
+function addTransaction(transaction) {
+  const exists = transactions.value.some((tx) => tx._id === transaction._id)
+  if (!exists) {
+    transactions.value = [transaction, ...transactions.value]
   }
-
-  loadTransactions()
 }
 
-onMounted(loadTransactions)
-onUnmounted(stopAll)
+function updateTransaction(transaction) {
+  const index = transactions.value.findIndex((tx) => tx._id === transaction._id)
+  if (index === -1) return
+  transactions.value[index] = { ...transactions.value[index], ...transaction }
+}
+
+onMounted(() => loadTransactions(true))
 </script>
