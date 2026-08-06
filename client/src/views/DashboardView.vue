@@ -11,15 +11,18 @@
       <div class="flex flex-col gap-5 lg:grid lg:grid-cols-5 lg:gap-6">
         <div class="lg:col-span-2">
           <StkPushForm
-            @transaction-added="addTransaction"
+            @transaction-added="handleTransactionAdded"
             @transaction-updated="updateTransaction"
+            @payment-complete="() => loadTransactions(page, false)"
           />
         </div>
         <div class="lg:col-span-3">
           <TransactionTable
             :transactions="transactions"
             :initial-loading="initialLoading"
-            @refresh="loadTransactions(true)"
+            :pagination="pagination"
+            @refresh="loadTransactions(page, true)"
+            @page-change="loadTransactions"
           />
         </div>
       </div>
@@ -36,12 +39,17 @@ import { paymentApi } from '@/services/api'
 
 const transactions = ref([])
 const initialLoading = ref(true)
+const page = ref(1)
+const pagination = ref({ page: 1, limit: 10, total: 0, totalPages: 1 })
 
-async function loadTransactions(showLoading = false) {
+async function loadTransactions(nextPage = page.value, showLoading = false) {
   if (showLoading) initialLoading.value = true
+  page.value = nextPage
+
   try {
-    const { data } = await paymentApi.getTransactions()
-    transactions.value = data
+    const { data } = await paymentApi.getTransactions(nextPage)
+    transactions.value = data.transactions
+    pagination.value = data.pagination
   } catch {
     if (showLoading) transactions.value = []
   } finally {
@@ -49,11 +57,17 @@ async function loadTransactions(showLoading = false) {
   }
 }
 
-function addTransaction(transaction) {
-  const exists = transactions.value.some((tx) => tx._id === transaction._id)
-  if (!exists) {
-    transactions.value = [transaction, ...transactions.value]
+function handleTransactionAdded(transaction) {
+  if (page.value === 1) {
+    const exists = transactions.value.some((tx) => tx._id === transaction._id)
+    if (!exists) {
+      transactions.value = [transaction, ...transactions.value].slice(0, pagination.value.limit)
+    }
+    pagination.value.total += exists ? 0 : 1
+    return
   }
+
+  loadTransactions(1, false)
 }
 
 function updateTransaction(transaction) {
@@ -62,5 +76,5 @@ function updateTransaction(transaction) {
   transactions.value[index] = { ...transactions.value[index], ...transaction }
 }
 
-onMounted(() => loadTransactions(true))
+onMounted(() => loadTransactions(1, true))
 </script>

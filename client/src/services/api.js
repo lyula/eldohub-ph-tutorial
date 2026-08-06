@@ -19,7 +19,9 @@ export const authApi = {
 
 export const paymentApi = {
   stkPush: (data) => api.post('/payments/stk-push', data),
-  getTransactions: () => api.get('/payments/transactions'),
+  getTransactions: (page = 1, limit = 10) =>
+    api.get('/payments/transactions', { params: { page, limit } }),
+  getTransaction: (id) => api.get(`/payments/transactions/${id}`),
 }
 
 export default api

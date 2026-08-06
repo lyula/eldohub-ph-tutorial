@@ -46,15 +46,14 @@ export function usePaymentStatus() {
       attempt.value = attempts
 
       try {
-        const { data } = await paymentApi.getTransactions()
-        const transaction = data.find((tx) => tx._id === id)
+        const { data: transaction } = await paymentApi.getTransaction(id)
 
         if (transaction) {
           status.value = transaction.status
           onUpdate?.(transaction)
 
           if (isFinalStatus(transaction.status)) {
-            onComplete?.(transaction.status)
+            onComplete?.(transaction.status, transaction)
             stopWaiting()
             return
           }

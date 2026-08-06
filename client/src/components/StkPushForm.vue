@@ -65,9 +65,12 @@
       </div>
     </div>
 
-    <p v-else-if="successMessage" class="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800">
-      {{ successMessage }}
-    </p>
+    <div v-else-if="successMessage" class="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800">
+      <p>{{ successMessage }}</p>
+      <p v-if="mpesaCode" class="mt-1 font-mono text-xs font-semibold text-green-900">
+        M-Pesa code: {{ mpesaCode }}
+      </p>
+    </div>
     <p v-else-if="warningMessage" class="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
       {{ warningMessage }}
     </p>
@@ -81,20 +84,22 @@
 import { computed, reactive, ref } from 'vue'
 import { paymentApi } from '@/services/api'
 import { usePaymentStatus } from '@/composables/usePaymentStatus'
+import { getMpesaCode } from '@/lib/transaction'
 
-const emit = defineEmits(['transaction-added', 'transaction-updated'])
+const emit = defineEmits(['transaction-added', 'transaction-updated', 'payment-complete'])
 
 const loading = ref(false)
 const error = ref('')
 const successMessage = ref('')
 const warningMessage = ref('')
+const mpesaCode = ref('')
 
 const { isWaiting, startWaiting } = usePaymentStatus()
 
 const form = reactive({
   amount: '',
   phone: '',
-  reference: `ELDO-${Date.now()}`,
+  reference: '',
 })
 
 const submitLabel = computed(() => {
@@ -110,10 +115,20 @@ function formatPhone(phone) {
   return p
 }
 
+function newReference() {
+  return `ELDO-${Date.now()}`
+}
+
 function clearMessages() {
   error.value = ''
   successMessage.value = ''
   warningMessage.value = ''
+  mpesaCode.value = ''
+}
+
+function resetPaymentFields() {
+  form.amount = ''
+  form.reference = newReference()
 }
 
 async function submit() {
@@ -122,6 +137,10 @@ async function submit() {
   if (!form.amount || !form.phone) {
     error.value = 'Amount and phone number are required.'
     return
+  }
+
+  if (!form.reference) {
+    form.reference = newReference()
   }
 
   loading.value = true
@@ -133,17 +152,25 @@ async function submit() {
     })
 
     emit('transaction-added', data.transaction)
-    form.reference = `ELDO-${Date.now()}`
 
     startWaiting(data.transaction._id, {
-      onUpdate: (transaction) => emit('transaction-updated', transaction),
-      onComplete: (result) => {
+      onUpdate: (transaction) => {
+        emit('transaction-updated', transaction)
+        const code = getMpesaCode(transaction)
+        if (code) mpesaCode.value = code
+      },
+      onComplete: (result, transaction) => {
+        resetPaymentFields()
+        emit('payment-complete')
+
         if (result === 'Success') {
           successMessage.value = 'Payment confirmed successfully.'
+          mpesaCode.value = getMpesaCode(transaction) || mpesaCode.value
         } else if (result === 'Failed') {
           error.value = 'Payment failed or was cancelled.'
         } else {
-          warningMessage.value = 'Payment confirmation timed out. Check your transactions for the latest status.'
+          warningMessage.value =
+            'Payment confirmation timed out. Check your transactions for the latest status.'
         }
       },
     })
@@ -153,4 +180,6 @@ async function submit() {
     loading.value = false
   }
 }
+
+resetPaymentFields()
 </script>
