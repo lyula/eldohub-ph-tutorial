@@ -1,6 +1,7 @@
 const axios = require('axios');
 const Transaction = require('../models/Transaction');
 
+// function to initiate STK push
 exports.initiateSTKPush = async (req, res) => {
   const { amount, phone, reference } = req.body;
 
@@ -12,7 +13,7 @@ exports.initiateSTKPush = async (req, res) => {
         phone_number: phone,
         channel_id: Number(process.env.PAYHERO_CHANNEL_ID),
         provider: 'm-pesa',
-        external_reference: reference,
+        external_reference: reference, 
         callback_url: process.env.CALLBACK_URL,
       },
       {
@@ -43,6 +44,7 @@ exports.initiateSTKPush = async (req, res) => {
   }
 };
 
+// function to handle payment callback for payment status
 exports.paymentCallback = async (req, res) => {
   const body = req.body;
   const payload = body.response || body;

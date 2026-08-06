@@ -7,7 +7,17 @@ const app = express();
 
 connectDB();
 
-app.use(cors());
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://eldohub-ph-apis.vercel.app',
+];
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
