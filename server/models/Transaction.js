@@ -8,6 +8,7 @@ const TransactionSchema = new mongoose.Schema(
     externalReference: { type: String, required: true },
     phoneNumber: String,
     amount: Number,
+    mpesaReceiptNumber: String,
     status: { type: String, default: 'Pending' },
     rawCallbackData: Object,
     rawStatusData: Object,

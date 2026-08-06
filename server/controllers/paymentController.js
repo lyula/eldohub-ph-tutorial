@@ -68,7 +68,11 @@ exports.paymentCallback = async (req, res) => {
           { externalReference: payload.ExternalReference },
         ],
       },
-      { status, rawCallbackData: body },
+      {
+        status,
+        mpesaReceiptNumber: payload.MpesaReceiptNumber || undefined,
+        rawCallbackData: body,
+      },
       { new: true }
     );
 
@@ -80,8 +84,37 @@ exports.paymentCallback = async (req, res) => {
 };
 
 exports.getTransactions = async (req, res) => {
-  const transactions = await Transaction.find({ userId: req.userId })
-    .sort({ createdAt: -1 })
-    .limit(20);
-  res.json(transactions);
+  const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(20, Number.parseInt(req.query.limit, 10) || 10);
+  const skip = (page - 1) * limit;
+
+  const filter = { userId: req.userId };
+
+  const [transactions, total] = await Promise.all([
+    Transaction.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    Transaction.countDocuments(filter),
+  ]);
+
+  res.json({
+    transactions,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+  });
+};
+
+exports.getTransaction = async (req, res) => {
+  const transaction = await Transaction.findOne({
+    _id: req.params.id,
+    userId: req.userId,
+  });
+
+  if (!transaction) {
+    return res.status(404).json({ error: 'Transaction not found' });
+  }
+
+  res.json(transaction);
 };
