@@ -1,7 +1,13 @@
 const axios = require('axios');
 const Transaction = require('../models/Transaction');
 
-// function to initiate STK push
+function mapPayheroStatus(status) {
+  const value = (status || '').toUpperCase();
+  if (value === 'SUCCESS') return 'Success';
+  if (value === 'FAILED') return 'Failed';
+  return 'Queued';
+}
+
 exports.initiateSTKPush = async (req, res) => {
   const { amount, phone, reference } = req.body;
 
@@ -13,7 +19,7 @@ exports.initiateSTKPush = async (req, res) => {
         phone_number: phone,
         channel_id: Number(process.env.PAYHERO_CHANNEL_ID),
         provider: 'm-pesa',
-        external_reference: reference, 
+        external_reference: reference,
         callback_url: process.env.CALLBACK_URL,
       },
       {
@@ -24,17 +30,21 @@ exports.initiateSTKPush = async (req, res) => {
       }
     );
 
-    await Transaction.create({
+    const transaction = await Transaction.create({
       userId: req.userId,
       checkoutRequestId: data.CheckoutRequestID,
       payheroReference: data.reference,
       externalReference: reference,
       phoneNumber: phone,
       amount,
-      status: data.status || 'Queued',
+      status: mapPayheroStatus(data.status) || 'Queued',
     });
 
-    res.json(data);
+    res.json({
+      ...data,
+      transactionId: transaction._id,
+      transaction,
+    });
   } catch (error) {
     const payheroError = error.response?.data;
     res.status(error.response?.status || 500).json({
@@ -44,7 +54,6 @@ exports.initiateSTKPush = async (req, res) => {
   }
 };
 
-// function to handle payment callback for payment status
 exports.paymentCallback = async (req, res) => {
   const body = req.body;
   const payload = body.response || body;
@@ -75,19 +84,4 @@ exports.getTransactions = async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(20);
   res.json(transactions);
-};
-
-exports.getTransactionStatus = async (req, res) => {
-  try {
-    const { data } = await axios.get(
-      'https://backend.payhero.co.ke/api/v2/transaction-status',
-      {
-        params: { reference: req.params.reference },
-        headers: { Authorization: process.env.PAYHERO_AUTH_TOKEN },
-      }
-    );
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.response?.data?.message || error.message });
-  }
 };

@@ -32,8 +32,9 @@
       >
         <div class="mb-3 flex items-start justify-between gap-2">
           <p class="break-all font-mono text-xs text-neutral-800">{{ tx.externalReference }}</p>
-          <StatusBadge :status="tx.status" />
+          <StatusBadge :status="tx.status" :polling="isPolling(tx._id)" />
         </div>
+        <p v-if="pollLabel(tx._id)" class="mb-3 text-xs text-amber-700">{{ pollLabel(tx._id) }}</p>
         <div class="grid grid-cols-2 gap-2 text-sm">
           <div>
             <p class="text-xs text-neutral-500">Phone</p>
@@ -69,7 +70,12 @@
             </td>
             <td class="py-3 pr-4 text-neutral-600">{{ tx.phoneNumber }}</td>
             <td class="py-3 pr-4 font-medium text-black">KES {{ tx.amount }}</td>
-            <td class="py-3"><StatusBadge :status="tx.status" /></td>
+            <td class="py-3">
+              <StatusBadge :status="tx.status" :polling="isPolling(tx._id)" />
+              <p v-if="pollLabel(tx._id)" class="mt-1 text-xs text-amber-700">
+                {{ pollLabel(tx._id) }}
+              </p>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -80,10 +86,21 @@
 <script setup>
 import StatusBadge from './StatusBadge.vue'
 
-defineProps({
+const props = defineProps({
   transactions: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
+  pollingState: { type: Object, default: () => ({}) },
 })
 
 defineEmits(['refresh'])
+
+function isPolling(id) {
+  return Boolean(props.pollingState[id]?.isPolling)
+}
+
+function pollLabel(id) {
+  const meta = props.pollingState[id]
+  if (!meta?.isPolling || !meta.attempt) return ''
+  return `Waiting for callback (${meta.attempt}/${meta.maxAttempts})`
+}
 </script>

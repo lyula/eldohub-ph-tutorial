@@ -10,12 +10,13 @@
 
       <div class="flex flex-col gap-5 lg:grid lg:grid-cols-5 lg:gap-6">
         <div class="lg:col-span-2">
-          <StkPushForm @sent="loadTransactions" />
+          <StkPushForm @sent="handleStkSent" />
         </div>
         <div class="lg:col-span-3">
           <TransactionTable
             :transactions="transactions"
             :loading="loading"
+            :polling-state="pollingState"
             @refresh="loadTransactions"
           />
         </div>
@@ -30,16 +31,21 @@ import AppNavbar from '@/components/AppNavbar.vue'
 import StkPushForm from '@/components/StkPushForm.vue'
 import TransactionTable from '@/components/TransactionTable.vue'
 import { paymentApi } from '@/services/api'
+import { useTransactionPolling } from '@/composables/useTransactionPolling'
 
 const transactions = ref([])
 const loading = ref(false)
-let pollTimer = null
+
+const { pollingState, startPolling, stopAll, resumePollingForQueued } = useTransactionPolling()
 
 async function loadTransactions() {
   loading.value = true
   try {
     const { data } = await paymentApi.getTransactions()
     transactions.value = data
+    resumePollingForQueued(data, (updated) => {
+      transactions.value = updated
+    })
   } catch {
     transactions.value = []
   } finally {
@@ -47,19 +53,21 @@ async function loadTransactions() {
   }
 }
 
-function startPolling() {
-  pollTimer = setInterval(async () => {
-    const hasPending = transactions.value.some((tx) =>
-      ['Pending', 'Queued'].includes(tx.status)
-    )
-    if (hasPending) await loadTransactions()
-  }, 5000)
+function handleStkSent(payload) {
+  if (payload?.transaction) {
+    transactions.value = [
+      payload.transaction,
+      ...transactions.value.filter((tx) => tx._id !== payload.transaction._id),
+    ]
+    startPolling(payload.transaction._id, (updated) => {
+      transactions.value = updated
+    })
+    return
+  }
+
+  loadTransactions()
 }
 
-onMounted(() => {
-  loadTransactions()
-  startPolling()
-})
-
-onUnmounted(() => clearInterval(pollTimer))
+onMounted(loadTransactions)
+onUnmounted(stopAll)
 </script>

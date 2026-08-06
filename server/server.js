@@ -10,6 +10,7 @@ connectDB();
 const allowedOrigins = [
   'http://localhost:5173',
   'https://eldohub-ph-apis.vercel.app',
+  'https://hookly-tg91.onrender.com',
 ];
 
 app.use(

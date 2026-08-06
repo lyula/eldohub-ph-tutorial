@@ -10,6 +10,7 @@ const TransactionSchema = new mongoose.Schema(
     amount: Number,
     status: { type: String, default: 'Pending' },
     rawCallbackData: Object,
+    rawStatusData: Object,
   },
   { timestamps: true }
 );

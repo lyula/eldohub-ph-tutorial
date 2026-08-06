@@ -47,7 +47,7 @@
       </button>
     </form>
 
-    <p v-if="message" class="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800">
+    <p v-if="message" class="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
       {{ message }}
     </p>
     <p v-if="error" class="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -95,8 +95,8 @@ async function submit() {
       phone: formatPhone(form.phone),
       reference: form.reference,
     })
-    message.value = `STK sent. Reference: ${data.reference || form.reference}`
-    emit('sent')
+    message.value = 'STK push sent. Waiting for payment confirmation on your phone...'
+    emit('sent', { transaction: data.transaction, transactionId: data.transactionId })
     form.reference = `ELDO-${Date.now()}`
   } catch (err) {
     error.value = err.response?.data?.error || 'Failed to send STK push.'
